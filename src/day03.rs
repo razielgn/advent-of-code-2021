@@ -5,9 +5,14 @@ pub fn input_generator(input: &str) -> Vec<String> {
     input.lines().map(|line| line.to_owned()).collect()
 }
 
+fn bin_iter_to_decimal(it: impl DoubleEndedIterator<Item = u32>) -> u32 {
+    it.rev().zip(0..).map(|(n, pow)| n * 2u32.pow(pow)).sum()
+}
+
 #[aoc(day3, part1)]
 pub fn part1(input: &[String]) -> u32 {
-    let mut occurrences = vec![(0, 0); input[0].len()];
+    let width = input[0].len();
+    let mut occurrences = vec![(0, 0); width];
 
     for n in input {
         for (c, mut occ) in n.chars().zip(occurrences.iter_mut()) {
@@ -19,29 +24,19 @@ pub fn part1(input: &[String]) -> u32 {
         }
     }
 
-    let gamma_rate = u32::from_str_radix(
-        &occurrences
+    let gamma_rate = bin_iter_to_decimal(
+        occurrences
             .iter()
-            .map(|(zeroes, ones)| if zeroes > ones { '0' } else { '1' })
-            .collect::<String>(),
-        2,
-    )
-    .unwrap();
+            .map(|(zeroes, ones)| if zeroes > ones { 0 } else { 1 }),
+    );
 
-    let epsilon_rate = u32::from_str_radix(
-        &occurrences
-            .iter()
-            .map(|(zeroes, ones)| if zeroes > ones { '1' } else { '0' })
-            .collect::<String>(),
-        2,
-    )
-    .unwrap();
+    let epsilon_rate = gamma_rate ^ ((1 << width) - 1);
 
     gamma_rate * epsilon_rate
 }
 
 #[aoc(day3, part2)]
-pub fn part2(input: &[String]) -> u32 {
+pub fn part2(_input: &[String]) -> u32 {
     todo!()
 }
 
