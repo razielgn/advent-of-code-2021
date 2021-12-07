@@ -2,28 +2,16 @@ use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools;
 use std::collections::HashSet;
 
-// try marked == 255
-
-#[derive(Debug, Clone, Copy)]
-enum Number {
-    Unmarked(u8),
-    Marked,
-}
-
-impl Default for Number {
-    fn default() -> Self {
-        Self::Marked
-    }
-}
+static MARKED: u8 = 255;
 
 #[derive(Debug, Clone, Copy)]
 struct Board {
-    by_rows: [Number; 25],
-    by_cols: [Number; 25],
+    by_rows: [u8; 25],
+    by_cols: [u8; 25],
 }
 
-fn transpose(rows: [Number; 25]) -> [Number; 25] {
-    let mut cols = <[Number; 25]>::default();
+fn transpose(rows: [u8; 25]) -> [u8; 25] {
+    let mut cols = <[u8; 25]>::default();
 
     for i in 0..5 {
         for j in 0..5 {
@@ -35,7 +23,7 @@ fn transpose(rows: [Number; 25]) -> [Number; 25] {
 }
 
 impl Board {
-    fn from_rows(by_rows: [Number; 25]) -> Self {
+    fn from_rows(by_rows: [u8; 25]) -> Self {
         Board {
             by_rows,
             by_cols: transpose(by_rows),
@@ -51,32 +39,25 @@ pub struct Game {
 
 impl Board {
     fn mark(&mut self, drawn: u8) {
-        self.by_rows = self.by_rows.map(|n| match n {
-            Number::Unmarked(n) if n == drawn => Number::Marked,
-            _ => n,
-        });
-
-        self.by_cols = self.by_cols.map(|n| match n {
-            Number::Unmarked(n) if n == drawn => Number::Marked,
-            _ => n,
-        });
+        self.by_rows = self.by_rows.map(|n| if n == drawn { MARKED } else { n });
+        self.by_cols = self.by_cols.map(|n| if n == drawn { MARKED } else { n });
     }
 
     fn has_won(&self) -> bool {
         self.by_rows
             .chunks(5)
-            .any(|row| row.iter().all(|n| matches!(n, Number::Marked)))
+            .any(|row| row.iter().all(|n| *n == MARKED))
             || self
                 .by_cols
                 .chunks(5)
-                .any(|col| col.iter().all(|n| matches!(n, Number::Marked)))
+                .any(|col| col.iter().all(|n| *n == MARKED))
     }
 
     fn sum_unmarked(&self) -> u32 {
         self.by_rows
             .iter()
             .filter_map(|n| {
-                if let Number::Unmarked(n) = n {
+                if *n != MARKED {
                     Some(u32::from(*n))
                 } else {
                     None
@@ -103,10 +84,7 @@ pub fn input_generator(input: &str) -> Game {
             Board::from_rows(
                 lines
                     .skip(1)
-                    .map(|line| {
-                        line.split_whitespace()
-                            .map(|s| Number::Unmarked(s.parse().unwrap()))
-                    })
+                    .map(|line| line.split_whitespace().map(|s| s.parse().unwrap()))
                     .flatten()
                     .collect::<Vec<_>>()
                     .try_into()
