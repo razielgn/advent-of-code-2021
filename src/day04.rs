@@ -1,5 +1,8 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools;
+use std::collections::HashSet;
+
+// try marked == 255
 
 #[derive(Debug, Clone, Copy)]
 enum Number {
@@ -7,8 +10,38 @@ enum Number {
     Marked,
 }
 
+impl Default for Number {
+    fn default() -> Self {
+        Self::Marked
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-struct Board([Number; 25]);
+struct Board {
+    by_rows: [Number; 25],
+    by_cols: [Number; 25],
+}
+
+fn transpose(rows: [Number; 25]) -> [Number; 25] {
+    let mut cols = <[Number; 25]>::default();
+
+    for i in 0..5 {
+        for j in 0..5 {
+            cols[j + i * 5] = rows[i + j * 5];
+        }
+    }
+
+    cols
+}
+
+impl Board {
+    fn from_rows(by_rows: [Number; 25]) -> Self {
+        Board {
+            by_rows,
+            by_cols: transpose(by_rows),
+        }
+    }
+}
 
 #[derive(Debug)]
 pub struct Game {
@@ -18,20 +51,29 @@ pub struct Game {
 
 impl Board {
     fn mark(&mut self, drawn: u8) {
-        self.0 = self.0.map(|n| match n {
+        self.by_rows = self.by_rows.map(|n| match n {
             Number::Unmarked(n) if n == drawn => Number::Marked,
             _ => n,
-        })
+        });
+
+        self.by_cols = self.by_cols.map(|n| match n {
+            Number::Unmarked(n) if n == drawn => Number::Marked,
+            _ => n,
+        });
     }
 
     fn has_won(&self) -> bool {
-        self.0
+        self.by_rows
             .chunks(5)
             .any(|row| row.iter().all(|n| matches!(n, Number::Marked)))
+            || self
+                .by_cols
+                .chunks(5)
+                .any(|col| col.iter().all(|n| matches!(n, Number::Marked)))
     }
 
     fn sum_unmarked(&self) -> u32 {
-        self.0
+        self.by_rows
             .iter()
             .filter_map(|n| {
                 if let Number::Unmarked(n) = n {
@@ -58,7 +100,7 @@ pub fn input_generator(input: &str) -> Game {
         .chunks(6)
         .into_iter()
         .map(|lines| {
-            Board(
+            Board::from_rows(
                 lines
                     .skip(1)
                     .map(|line| {
@@ -94,8 +136,29 @@ pub fn part1(input: &Game) -> u32 {
 }
 
 #[aoc(day4, part2)]
-pub fn part2(_input: &Game) -> u32 {
-    todo!()
+pub fn part2(input: &Game) -> u32 {
+    let mut boards = input.boards.clone();
+
+    let mut won = HashSet::new();
+    let mut last_won_with_drawn = None;
+
+    for drawn in &input.drawn {
+        for (idx, board) in boards.iter_mut().enumerate() {
+            if won.contains(&idx) {
+                continue;
+            }
+
+            board.mark(*drawn);
+
+            if board.has_won() {
+                won.insert(idx);
+                last_won_with_drawn = Some((*board, *drawn));
+            }
+        }
+    }
+
+    let (board, drawn) = last_won_with_drawn.unwrap();
+    board.sum_unmarked() * u32::from(drawn)
 }
 
 #[cfg(test)]
@@ -135,16 +198,16 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn example2() {
-    //     assert_eq!(part2(&input_generator(EXAMPLE)), 1_924);
-    // }
+    #[test]
+    fn example2() {
+        assert_eq!(part2(&input_generator(EXAMPLE)), 1_924);
+    }
 
-    // #[test]
-    // fn solution2() {
-    //     assert_eq!(
-    //         part2(&input_generator(include_str!("../input/2021/day4.txt"))),
-    //         793_873,
-    //     );
-    // }
+    #[test]
+    fn solution2() {
+        assert_eq!(
+            part2(&input_generator(include_str!("../input/2021/day4.txt"))),
+            36_975,
+        );
+    }
 }
