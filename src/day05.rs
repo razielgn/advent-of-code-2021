@@ -1,10 +1,42 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools;
+use std::{
+    iter::{once, successors},
+    ops::{Add, Sub},
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Point {
     x: i32,
     y: i32,
+}
+
+impl Add for Point {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl Sub for Point {
+    type Output = Self;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        Point {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl Point {
+    fn norm(&self) -> f64 {
+        f64::from(self.x.pow(2) + self.y.pow(2)).sqrt()
+    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -19,21 +51,16 @@ impl Line {
     }
 
     fn points(&self) -> impl Iterator<Item = Point> + '_ {
-        let dist = (self.from.x - self.to.x, self.from.y - self.to.y);
-        let norm = f64::from(dist.0.pow(2) + dist.1.pow(2)).sqrt();
-        let dir = (
-            (f64::from(dist.0) / norm) as i32,
-            (f64::from(dist.1) / norm) as i32,
-        );
+        let dist = self.from - self.to;
+        let norm = dist.norm();
+        let dir = Point {
+            x: (f64::from(dist.x) / norm).round() as i32,
+            y: (f64::from(dist.y) / norm).round() as i32,
+        };
 
-        std::iter::successors(Some(self.to), move |Point { x, y }| {
-            Some(Point {
-                x: x + dir.0,
-                y: y + dir.1,
-            })
-        })
-        .take_while(|point| *point != self.from)
-        .chain(std::iter::once(self.from))
+        successors(Some(self.to), move |point| Some(*point + dir))
+            .take_while(|point| *point != self.from)
+            .chain(once(self.from))
     }
 }
 
@@ -62,8 +89,7 @@ pub fn input_generator(input: &str) -> Vec<Line> {
         .collect()
 }
 
-#[aoc(day5, part1)]
-pub fn part1(input: &[Line]) -> usize {
+fn create_grid(input: &[Line]) -> Vec<Vec<u8>> {
     let width = input
         .iter()
         .map(|Line { from, to }| [from.x, to.x])
@@ -79,8 +105,13 @@ pub fn part1(input: &[Line]) -> usize {
         .unwrap()
         + 1;
 
+    vec![vec![0; width as usize]; height as usize]
+}
+
+#[aoc(day5, part1)]
+pub fn part1(input: &[Line]) -> usize {
     let grid = input.iter().filter(|line| line.is_hor_or_vert()).fold(
-        vec![vec![0; width as usize]; height as usize],
+        create_grid(input),
         |mut grid, line| {
             for point in line.points() {
                 grid[point.y as usize][point.x as usize] += 1;
@@ -98,8 +129,20 @@ pub fn part1(input: &[Line]) -> usize {
 }
 
 #[aoc(day5, part2)]
-pub fn part2(_input: &[Line]) -> u16 {
-    todo!()
+pub fn part2(input: &[Line]) -> usize {
+    let grid = input.iter().fold(create_grid(input), |mut grid, line| {
+        for point in line.points() {
+            grid[point.y as usize][point.x as usize] += 1;
+        }
+
+        grid
+    });
+
+    grid.into_iter()
+        .map(|rows| rows.into_iter())
+        .flatten()
+        .filter(|c| *c >= 2)
+        .count()
 }
 
 #[cfg(test)]
@@ -130,16 +173,47 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn example2() {
-    //     assert_eq!(part2(&input_generator(EXAMPLE)), 1_924);
-    // }
+    #[test]
+    fn example2() {
+        assert_eq!(part2(&input_generator(EXAMPLE)), 12);
+    }
 
-    // #[test]
-    // fn solution2() {
-    //     assert_eq!(
-    //         part2(&input_generator(include_str!("../input/2021/day5.txt"))),
-    //         36_975,
-    //     );
-    // }
+    #[test]
+    fn line_points() {
+        assert_eq!(
+            vec![
+                Point { x: 1, y: 3 },
+                Point { x: 1, y: 2 },
+                Point { x: 1, y: 1 }
+            ],
+            Line {
+                from: Point { x: 1, y: 1 },
+                to: Point { x: 1, y: 3 }
+            }
+            .points()
+            .collect_vec()
+        );
+
+        assert_eq!(
+            vec![
+                Point { x: 3, y: 3 },
+                Point { x: 2, y: 2 },
+                Point { x: 1, y: 1 }
+            ],
+            Line {
+                from: Point { x: 1, y: 1 },
+                to: Point { x: 3, y: 3 }
+            }
+            .points()
+            .collect_vec()
+        );
+    }
+
+    #[test]
+    fn solution2() {
+        assert_eq!(
+            part2(&input_generator(include_str!("../input/2021/day5.txt"))),
+            21_038,
+        );
+    }
 }
