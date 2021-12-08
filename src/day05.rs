@@ -1,6 +1,5 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools;
-use std::collections::HashMap;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 struct Point {
@@ -65,20 +64,37 @@ pub fn input_generator(input: &str) -> Vec<Line> {
 
 #[aoc(day5, part1)]
 pub fn part1(input: &[Line]) -> usize {
+    let width = input
+        .iter()
+        .map(|Line { from, to }| [from.x, to.x])
+        .flatten()
+        .max()
+        .unwrap()
+        + 1;
+    let height = input
+        .iter()
+        .map(|Line { from, to }| [from.y, to.y])
+        .flatten()
+        .max()
+        .unwrap()
+        + 1;
+
     let grid = input.iter().filter(|line| line.is_hor_or_vert()).fold(
-        HashMap::with_capacity(100_000),
+        vec![vec![0; width as usize]; height as usize],
         |mut grid, line| {
             for point in line.points() {
-                grid.entry(point)
-                    .and_modify(|count| *count += 1)
-                    .or_insert(1);
+                grid[point.y as usize][point.x as usize] += 1;
             }
 
             grid
         },
     );
 
-    grid.into_values().filter(|count| *count >= 2).count()
+    grid.into_iter()
+        .map(|rows| rows.into_iter())
+        .flatten()
+        .filter(|c| *c >= 2)
+        .count()
 }
 
 #[aoc(day5, part2)]
