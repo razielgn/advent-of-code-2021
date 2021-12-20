@@ -1,10 +1,13 @@
 use aoc_runner_derive::{aoc, aoc_generator};
+use arrayvec::ArrayVec;
 use itertools::Itertools;
+
+type Digits = ArrayVec<char, 7>;
 
 #[derive(Debug)]
 pub struct Entry {
-    sig_patterns: Vec<String>,
-    output_digits: Vec<String>,
+    sig_patterns: ArrayVec<Digits, 10>,
+    output_digits: ArrayVec<Digits, 4>,
 }
 
 impl Entry {
@@ -21,8 +24,8 @@ pub fn input_generator(input: &str) -> Vec<Entry> {
         .map(|s| {
             let (a, b) = s.split(" | ").collect_tuple().unwrap();
             Entry {
-                sig_patterns: a.split(' ').map(|s| s.into()).collect(),
-                output_digits: b.split(' ').map(|s| s.into()).collect(),
+                sig_patterns: a.split(' ').map(|s| s.chars().sorted().collect()).collect(),
+                output_digits: b.split(' ').map(|s| s.chars().sorted().collect()).collect(),
             }
         })
         .collect()
