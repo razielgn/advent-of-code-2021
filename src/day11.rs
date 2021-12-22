@@ -1,54 +1,49 @@
 use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::iproduct;
-use std::collections::HashSet;
+use ndarray::prelude::*;
+
+type Grid = Array2<u8>;
 
 #[aoc_generator(day11)]
-pub fn input_generator(input: &str) -> Vec<Vec<u8>> {
-    input
-        .trim()
-        .lines()
-        .map(|line| {
-            line.chars()
-                .map(|c| c.to_digit(10).unwrap() as u8)
-                .collect()
-        })
-        .collect()
+pub fn input_generator(input: &str) -> Grid {
+    let height = input.trim().lines().count();
+    let width = input.trim().lines().next().unwrap().chars().count();
+
+    Array::from_iter(
+        input
+            .chars()
+            .filter_map(|c| c.to_digit(10).map(|d| d as u8)),
+    )
+    .into_shape((height, width))
+    .unwrap()
 }
 
-fn inc_at(grid: &mut [Vec<u8>], h: usize, w: usize) {
-    if let Some(row) = grid.get_mut(h) {
-        if let Some(energy) = row.get_mut(w) {
-            *energy += 1;
-        }
-    }
-}
-
-fn step(mut grid: Vec<Vec<u8>>) -> (usize, Vec<Vec<u8>>) {
-    let height = grid.len();
-    let width = grid[0].len();
-
-    for (h, w) in iproduct!(0..height, 0..width) {
-        grid[h][w] += 1;
+fn step(mut grid: Grid) -> (usize, Grid) {
+    fn inc(energy: &mut u8) {
+        *energy += 1;
     }
 
-    let mut flashed = HashSet::new();
+    grid += 1;
+
+    let mut flashed = Array2::from_elem((grid.ncols(), grid.nrows()), false);
 
     loop {
         let mut should_stop = true;
 
-        for (h, w) in iproduct!(0..height, 0..width) {
-            if !flashed.contains(&(h, w)) && grid[h][w] > 9 {
-                flashed.insert((h, w));
+        for (h, w) in iproduct!(0..grid.ncols(), 0..grid.nrows()) {
+            if grid[(h, w)] > 9 && !flashed[(h, w)] {
+                flashed[(h, w)] = true;
                 should_stop = false;
 
-                inc_at(&mut grid, h.wrapping_sub(1), w.wrapping_sub(1));
-                inc_at(&mut grid, h.wrapping_sub(1), w);
-                inc_at(&mut grid, h.wrapping_sub(1), w + 1);
-                inc_at(&mut grid, h, w.wrapping_sub(1));
-                inc_at(&mut grid, h, w + 1);
-                inc_at(&mut grid, h + 1, w.wrapping_sub(1));
-                inc_at(&mut grid, h + 1, w);
-                inc_at(&mut grid, h + 1, w + 1);
+                grid.get_mut((h.wrapping_sub(1), w.wrapping_sub(1)))
+                    .map(inc);
+                grid.get_mut((h.wrapping_sub(1), w)).map(inc);
+                grid.get_mut((h.wrapping_sub(1), w + 1)).map(inc);
+                grid.get_mut((h, w.wrapping_sub(1))).map(inc);
+                grid.get_mut((h, w + 1)).map(inc);
+                grid.get_mut((h + 1, w.wrapping_sub(1))).map(inc);
+                grid.get_mut((h + 1, w)).map(inc);
+                grid.get_mut((h + 1, w + 1)).map(inc);
             }
         }
 
@@ -57,19 +52,19 @@ fn step(mut grid: Vec<Vec<u8>>) -> (usize, Vec<Vec<u8>>) {
         }
     }
 
-    for (h, w) in iproduct!(0..height, 0..width) {
-        if grid[h][w] > 9 {
-            grid[h][w] = 0;
+    grid.map_inplace(|energy| {
+        if *energy > 9 {
+            *energy = 0
         }
-    }
+    });
 
-    (flashed.len(), grid)
+    (flashed.iter().filter(|&&flashed| flashed).count(), grid)
 }
 
 #[aoc(day11, part1)]
-pub fn part1(input: &[Vec<u8>]) -> usize {
+pub fn part1(grid: &Grid) -> usize {
     (0..100)
-        .fold((0usize, input.to_vec()), |(acc, grid), _| {
+        .fold((0usize, grid.clone()), |(acc, grid), _| {
             let (inc, next_grid) = step(grid);
             (acc + inc, next_grid)
         })
@@ -77,11 +72,11 @@ pub fn part1(input: &[Vec<u8>]) -> usize {
 }
 
 #[aoc(day11, part2)]
-pub fn part2(input: &[Vec<u8>]) -> usize {
+pub fn part2(grid: &Grid) -> usize {
     let mut i = 1;
 
-    let octopusses = input.len() * input[0].len();
-    let mut grid = input.to_vec();
+    let octopusses = grid.ncols() * grid.nrows();
+    let mut grid = grid.clone();
 
     loop {
         let (flashes, next_grid) = step(grid);
