@@ -64,7 +64,7 @@ fn step(mut grid: Grid) -> (usize, Grid) {
 #[aoc(day11, part1)]
 pub fn part1(grid: &Grid) -> usize {
     (0..100)
-        .fold((0usize, grid.clone()), |(acc, grid), _| {
+        .fold((0_usize, grid.clone()), |(acc, grid), _| {
             let (inc, next_grid) = step(grid);
             (acc + inc, next_grid)
         })

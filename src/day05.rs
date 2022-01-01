@@ -92,15 +92,13 @@ pub fn input_generator(input: &str) -> Vec<Line> {
 fn create_grid(input: &[Line]) -> Vec<Vec<u8>> {
     let width = input
         .iter()
-        .map(|Line { from, to }| [from.x, to.x])
-        .flatten()
+        .flat_map(|Line { from, to }| [from.x, to.x])
         .max()
         .unwrap()
         + 1;
     let height = input
         .iter()
-        .map(|Line { from, to }| [from.y, to.y])
-        .flatten()
+        .flat_map(|Line { from, to }| [from.y, to.y])
         .max()
         .unwrap()
         + 1;
@@ -122,8 +120,7 @@ pub fn part1(input: &[Line]) -> usize {
     );
 
     grid.into_iter()
-        .map(|rows| rows.into_iter())
-        .flatten()
+        .flat_map(|rows| rows.into_iter())
         .filter(|c| *c >= 2)
         .count()
 }
@@ -139,8 +136,7 @@ pub fn part2(input: &[Line]) -> usize {
     });
 
     grid.into_iter()
-        .map(|rows| rows.into_iter())
-        .flatten()
+        .flat_map(|rows| rows.into_iter())
         .filter(|c| *c >= 2)
         .count()
 }

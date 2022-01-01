@@ -23,6 +23,7 @@ impl Entry {
             .fold(0, |acc, bin| acc * 10 + decoder[bin as usize])
     }
 
+    #[allow(clippy::many_single_char_names)]
     fn decoder(&self) -> Decoder {
         let p: ArrayVec<u32, 10> = self
             .sig_patterns
@@ -53,7 +54,7 @@ impl Entry {
         };
         let e = abcdefg & !a & !bcdf & !g;
 
-        let mut decoder = [0u32; 256];
+        let mut decoder = [0_u32; 256];
         decoder[(a | b | c | e | f | g) as usize] = 0;
         decoder[(c | f) as usize] = 1;
         decoder[(a | c | d | e | g) as usize] = 2;
@@ -94,13 +95,12 @@ pub fn input_generator(input: &str) -> Vec<Entry> {
 pub fn part1(input: &[Entry]) -> usize {
     input
         .iter()
-        .map(|entry| {
+        .flat_map(|entry| {
             entry
                 .output_digits
                 .iter()
                 .filter(|output| matches!(output.len(), 2 | 3 | 4 | 7))
         })
-        .flatten()
         .count()
 }
 

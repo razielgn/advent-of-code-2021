@@ -6,7 +6,7 @@ pub fn input_generator(input: &str) -> Vec<String> {
 }
 
 fn bin_iter_to_decimal(it: impl DoubleEndedIterator<Item = u32>) -> u32 {
-    it.rev().zip(0..).map(|(n, pow)| n * 2u32.pow(pow)).sum()
+    it.rev().zip(0..).map(|(n, pow)| n * 2_u32.pow(pow)).sum()
 }
 
 #[aoc(day3, part1)]

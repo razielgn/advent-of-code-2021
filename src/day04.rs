@@ -57,10 +57,10 @@ impl Board {
         self.by_rows
             .iter()
             .filter_map(|n| {
-                if *n != MARKED {
-                    Some(u32::from(*n))
-                } else {
+                if *n == MARKED {
                     None
+                } else {
+                    Some(u32::from(*n))
                 }
             })
             .sum()
@@ -84,8 +84,7 @@ pub fn input_generator(input: &str) -> Game {
             Board::from_rows(
                 lines
                     .skip(1)
-                    .map(|line| line.split_whitespace().map(|s| s.parse().unwrap()))
-                    .flatten()
+                    .flat_map(|line| line.split_whitespace().map(|s| s.parse().unwrap()))
                     .collect::<Vec<_>>()
                     .try_into()
                     .unwrap(),

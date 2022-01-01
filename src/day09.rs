@@ -35,7 +35,7 @@ fn basin_size(grid: &[Vec<u8>], h: usize, w: usize) -> usize {
     fn go(g: &mut Vec<Vec<u8>>, h: usize, w: usize) -> usize {
         let n = g.get(h).and_then(|row| row.get(w));
 
-        if let None | Some(9) | Some(255) = n {
+        if let None | Some(9 | 255) = n {
             return 0;
         }
 
