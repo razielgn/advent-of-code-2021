@@ -2,15 +2,18 @@ use aoc_runner_derive::{aoc, aoc_generator};
 use itertools::Itertools;
 use std::{collections::BTreeMap, str::FromStr};
 
-pub type Nodes = BTreeMap<Cave, Vec<Cave>>;
-type Path<'a> = Vec<&'a Cave>;
-
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub enum Cave {
     Start,
     End,
     Small(String),
     Big(String),
+}
+
+impl Cave {
+    fn is_small(&self) -> bool {
+        matches!(self, Cave::Small(_))
+    }
 }
 
 impl FromStr for Cave {
@@ -31,6 +34,60 @@ impl FromStr for Cave {
     }
 }
 
+pub type Nodes = BTreeMap<Cave, Vec<Cave>>;
+
+trait Path<'a>: Clone {
+    fn visit(&mut self, cave: &'a Cave);
+    fn can_visit(&self, cave: &'a Cave) -> bool;
+}
+
+#[derive(Clone, Default)]
+struct Part1Path<'a>(Vec<&'a Cave>);
+
+impl<'a> Path<'a> for Part1Path<'a> {
+    fn visit(&mut self, cave: &'a Cave) {
+        self.0.push(cave);
+    }
+
+    fn can_visit(&self, cave: &'a Cave) -> bool {
+        if !cave.is_small() {
+            return true;
+        }
+
+        !self.0.contains(&cave)
+    }
+}
+
+#[derive(Clone, Default)]
+struct Part2Path<'a> {
+    any_small_cave_visited_twice: bool,
+    path: Vec<&'a Cave>,
+}
+
+impl Part2Path<'_> {
+    fn times_visited(&self, cave: &Cave) -> usize {
+        self.path.iter().filter(|&&visited| visited == cave).count()
+    }
+}
+
+impl<'a> Path<'a> for Part2Path<'a> {
+    fn visit(&mut self, cave: &'a Cave) {
+        self.path.push(cave);
+
+        if cave.is_small() && self.times_visited(cave) == 2 {
+            self.any_small_cave_visited_twice = true;
+        }
+    }
+
+    fn can_visit(&self, cave: &'a Cave) -> bool {
+        if !cave.is_small() || !self.path.contains(&cave) {
+            return true;
+        }
+
+        !self.any_small_cave_visited_twice
+    }
+}
+
 #[aoc_generator(day12)]
 pub fn input_generator(input: &str) -> Nodes {
     input
@@ -38,82 +95,61 @@ pub fn input_generator(input: &str) -> Nodes {
         .lines()
         .map(|s| s.split('-').collect_tuple().unwrap())
         .fold(BTreeMap::new(), |mut nodes, (a, b)| {
-            if b != "start" {
-                nodes
-                    .entry(a.parse().unwrap())
-                    .or_default()
-                    .push(b.parse().unwrap());
+            let a: Cave = a.parse().unwrap();
+            let b: Cave = b.parse().unwrap();
+
+            if b != Cave::Start {
+                nodes.entry(a.clone()).or_default().push(b.clone());
             }
 
-            if a != "start" && b != "end" {
-                nodes
-                    .entry(b.parse().unwrap())
-                    .or_default()
-                    .push(a.parse().unwrap());
+            if a != Cave::Start && b != Cave::End {
+                nodes.entry(b).or_default().push(a);
             }
 
             nodes
         })
 }
 
-fn can_visit<'a>(path: &[&'a Cave], cave: &'a Cave) -> bool {
-    if let Cave::Small(_) = cave {
-        !path.contains(&cave)
-    } else {
-        true
-    }
-}
-
-fn all_paths_from<'a>(nodes: &'a Nodes, mut path: Path<'a>, current: &'a Cave) -> Vec<Path<'a>> {
-    path.push(current);
+fn count_all_paths_from<'a, P>(nodes: &'a Nodes, mut path: P, current: &'a Cave) -> usize
+where
+    P: Path<'a>,
+{
+    path.visit(current);
 
     if let Cave::End = current {
-        return vec![path];
+        return 1;
     }
 
     nodes[current]
         .iter()
-        .filter(|next_cave| can_visit(&path, next_cave))
-        .map(|next_cave| all_paths_from(nodes, path.clone(), next_cave))
-        .flatten()
-        .collect_vec()
+        .filter(|next_cave| path.can_visit(next_cave))
+        .map(|next_cave| count_all_paths_from(nodes, path.clone(), next_cave))
+        .sum()
 }
 
 #[aoc(day12, part1)]
 pub fn part1(nodes: &Nodes) -> usize {
-    all_paths_from(nodes, vec![], &Cave::Start).len()
+    count_all_paths_from(nodes, Part1Path::default(), &Cave::Start)
 }
 
 #[aoc(day12, part2)]
-pub fn part2(_nodes: &Nodes) -> usize {
-    todo!()
+pub fn part2(nodes: &Nodes) -> usize {
+    count_all_paths_from(nodes, Part2Path::default(), &Cave::Start)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    #[test]
-    fn example1_1() {
-        assert_eq!(
-            part1(&input_generator(
-                "start-A
+    static EXAMPLE_1: &str = "start-A
 start-b
 A-c
 A-b
 b-d
 A-end
-b-end"
-            )),
-            10
-        );
-    }
+b-end";
 
-    #[test]
-    fn example1_2() {
-        assert_eq!(
-            part1(&input_generator(
-                "dc-end
+    static EXAMPLE_2: &str = "dc-end
 HN-start
 start-kj
 dc-start
@@ -122,17 +158,9 @@ LN-dc
 HN-end
 kj-sa
 kj-HN
-kj-dc"
-            )),
-            19
-        );
-    }
+kj-dc";
 
-    #[test]
-    fn example1_3() {
-        assert_eq!(
-            part1(&input_generator(
-                "fs-end
+    static EXAMPLE_3: &str = "fs-end
 he-DX
 fs-he
 start-DX
@@ -149,30 +177,51 @@ start-pj
 he-WI
 zg-he
 pj-fs
-start-RW"
-            )),
-            226
-        );
+start-RW";
+
+    #[test]
+    fn example1_1() {
+        assert_eq!(part1(&input_generator(EXAMPLE_1)), 10);
+    }
+
+    #[test]
+    fn example1_2() {
+        assert_eq!(part1(&input_generator(EXAMPLE_2)), 19);
+    }
+
+    #[test]
+    fn example1_3() {
+        assert_eq!(part1(&input_generator(EXAMPLE_3)), 226);
     }
 
     #[test]
     fn solution1() {
         assert_eq!(
             part1(&input_generator(include_str!("../input/2021/day12.txt"))),
-            5457,
+            5_457,
         );
     }
 
-    // #[test]
-    // fn example2() {
-    //     assert_eq!(part2(&input_generator(EXAMPLE)), 61229);
-    // }
+    #[test]
+    fn example2_1() {
+        assert_eq!(part2(&input_generator(EXAMPLE_1)), 36);
+    }
 
-    // #[test]
-    // fn solution2() {
-    //     assert_eq!(
-    //         part2(&input_generator(include_str!("../input/2021/day12.txt"))),
-    //         1_027_422,
-    //     );
-    // }
+    #[test]
+    fn example2_2() {
+        assert_eq!(part2(&input_generator(EXAMPLE_2)), 103);
+    }
+
+    #[test]
+    fn example2_3() {
+        assert_eq!(part2(&input_generator(EXAMPLE_3)), 3509);
+    }
+
+    #[test]
+    fn solution2() {
+        assert_eq!(
+            part2(&input_generator(include_str!("../input/2021/day12.txt"))),
+            128_506,
+        );
+    }
 }
