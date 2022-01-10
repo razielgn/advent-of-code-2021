@@ -42,12 +42,12 @@ type Literal = u64;
 enum Packet {
     Literal {
         version: u8,
-        inner: Literal,
+        value: Literal,
     },
     Operator {
         version: u8,
         op: Op,
-        args: Vec<Packet>,
+        operands: Vec<Packet>,
     },
 }
 
@@ -66,7 +66,7 @@ fn parse_packet(input: BSlice<Msb0, u8>) -> IResult<BSlice<Msb0, u8>, Packet> {
             tag(BSlice(bits![static 1, 0, 0])),
         ))(input)?;
 
-        let (input, mut inner) = fold_many0(
+        let (input, mut value) = fold_many0(
             preceded(tag(BSlice(bits![static 1])), map(take(4_usize), to_u8)),
             || 0,
             |acc, n| acc << 4 | Literal::from(n),
@@ -74,10 +74,9 @@ fn parse_packet(input: BSlice<Msb0, u8>) -> IResult<BSlice<Msb0, u8>, Packet> {
 
         let (input, n) = preceded(tag(BSlice(bits![static 0])), map(take(4_usize), to_u8))(input)?;
 
-        inner <<= 4;
-        inner |= Literal::from(n);
+        value = (value << 4) | Literal::from(n);
 
-        Ok((input, Packet::Literal { version, inner }))
+        Ok((input, Packet::Literal { version, value }))
     }
 
     fn parse_operator(input: BSlice<Msb0, u8>) -> IResult<BSlice<Msb0, u8>, Packet> {
@@ -86,7 +85,7 @@ fn parse_packet(input: BSlice<Msb0, u8>) -> IResult<BSlice<Msb0, u8>, Packet> {
 
         let (input, length_type_id) = map(take(1_usize), to_u8)(input)?;
 
-        let (input, args) = if length_type_id == 0 {
+        let (input, operands) = if length_type_id == 0 {
             length_value(map(take(15_usize), to_usize), many1(parse_packet))(input)
         } else {
             length_count(map(take(11_usize), to_usize), parse_packet)(input)
@@ -103,88 +102,79 @@ fn parse_packet(input: BSlice<Msb0, u8>) -> IResult<BSlice<Msb0, u8>, Packet> {
             _ => unreachable!(),
         };
 
-        Ok((input, Packet::Operator { version, op, args }))
+        Ok((
+            input,
+            Packet::Operator {
+                version,
+                op,
+                operands,
+            },
+        ))
     }
 
     alt((parse_literal, parse_operator))(input)
 }
 
-fn sum_packet_versions(packet: &Packet) -> usize {
+fn sum_packet_versions(packet: &Packet) -> u16 {
     match packet {
-        Packet::Literal { version, .. } => usize::from(*version),
-        Packet::Operator { version, args, .. } => {
-            usize::from(*version) + args.iter().map(sum_packet_versions).sum::<usize>()
-        }
+        Packet::Literal { version, .. } => u16::from(*version),
+        Packet::Operator {
+            version, operands, ..
+        } => u16::from(*version) + operands.iter().map(sum_packet_versions).sum::<u16>(),
     }
 }
 
 #[aoc(day16, part1)]
-pub fn part1(input: &Transmission) -> usize {
-    let (_, packet) = parse_packet(BSlice(input.as_bitslice())).unwrap();
-    sum_packet_versions(&packet)
+pub fn part1(input: &Transmission) -> u16 {
+    let (_, root) = parse_packet(BSlice(input.as_bitslice())).unwrap();
+    sum_packet_versions(&root)
 }
 
 fn eval(packet: &Packet) -> Literal {
     match packet {
-        Packet::Literal { inner, .. } => *inner,
+        Packet::Literal { value, .. } => *value,
         Packet::Operator {
-            op: Op::Sum, args, ..
-        } => args.iter().map(eval).sum(),
+            op: Op::Sum,
+            operands,
+            ..
+        } => operands.iter().map(eval).sum(),
         Packet::Operator {
             op: Op::Product,
-            args,
+            operands,
             ..
-        } => args.iter().map(eval).product(),
+        } => operands.iter().map(eval).product(),
         Packet::Operator {
             op: Op::Minimum,
-            args,
+            operands,
             ..
-        } => args.iter().map(eval).min().unwrap(),
+        } => operands.iter().map(eval).min().unwrap(),
         Packet::Operator {
             op: Op::Maximum,
-            args,
+            operands,
             ..
-        } => args.iter().map(eval).max().unwrap(),
+        } => operands.iter().map(eval).max().unwrap(),
         Packet::Operator {
             op: Op::GreaterThan,
-            args,
+            operands,
             ..
-        } => {
-            if eval(&args[0]) > eval(&args[1]) {
-                1
-            } else {
-                0
-            }
-        }
+        } => Literal::from(eval(&operands[0]) > eval(&operands[1])),
         Packet::Operator {
             op: Op::LessThan,
-            args,
+            operands,
             ..
-        } => {
-            if eval(&args[0]) < eval(&args[1]) {
-                1
-            } else {
-                0
-            }
-        }
+        } => Literal::from(eval(&operands[0]) < eval(&operands[1])),
         Packet::Operator {
             op: Op::EqualTo,
-            args,
+            operands,
             ..
-        } => {
-            if eval(&args[0]) == eval(&args[1]) {
-                1
-            } else {
-                0
-            }
-        }
+        } => Literal::from(eval(&operands[0]) == eval(&operands[1])),
     }
 }
 
 #[aoc(day16, part2)]
 pub fn part2(input: &Transmission) -> Literal {
-    let (_, packet) = parse_packet(BSlice(input.as_bitslice())).unwrap();
-    eval(&packet)
+    let (_, root) = parse_packet(BSlice(input.as_bitslice())).unwrap();
+    eval(&root)
 }
 
 #[cfg(test)]
