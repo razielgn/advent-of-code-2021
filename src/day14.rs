@@ -151,7 +151,7 @@ CN -> C";
     fn solution1() {
         assert_eq!(
             part1(&input_generator(include_str!("../input/2021/day14.txt"))),
-            3587,
+            3_587,
         );
     }
 
@@ -159,7 +159,7 @@ CN -> C";
     fn solution2() {
         assert_eq!(
             part2(&input_generator(include_str!("../input/2021/day14.txt"))),
-            3906445077999,
+            3_906_445_077_999,
         );
     }
 }

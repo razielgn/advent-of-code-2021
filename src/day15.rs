@@ -74,7 +74,7 @@ pub fn part1(grid: &Grid) -> u16 {
 fn enlarge_grid(small_grid: &Grid) -> Grid {
     let tile_size = (small_grid.nrows(), small_grid.ncols());
     let scale = 5;
-    let mut grid = Array2::from_elem((tile_size.0 * scale, tile_size.1 * scale), 0u16);
+    let mut grid = Array2::from_elem((tile_size.0 * scale, tile_size.1 * scale), 0_u16);
 
     let increase_risk = |risk, n| {
         let nrisk = risk + n;
@@ -86,7 +86,7 @@ fn enlarge_grid(small_grid: &Grid) -> Grid {
         }
     };
 
-    for i in 0..=(scale - 1) {
+    for i in 0..scale {
         let tile = small_grid.mapv(|risk| increase_risk(risk, i as u16));
 
         grid.slice_mut(s![
@@ -96,8 +96,8 @@ fn enlarge_grid(small_grid: &Grid) -> Grid {
         .assign(&tile);
     }
 
-    for i in 0..=(scale - 1) {
-        for j in 1..=(scale - 1) {
+    for i in 0..scale {
+        for j in 1..scale {
             let tile = grid
                 .slice(s![i * tile_size.0..(i + 1) * tile_size.0, 0..tile_size.1,])
                 .mapv(|risk| increase_risk(risk, j as u16));

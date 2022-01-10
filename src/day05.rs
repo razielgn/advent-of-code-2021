@@ -34,7 +34,7 @@ impl Sub for Point {
 }
 
 impl Point {
-    fn norm(&self) -> f64 {
+    fn norm(self) -> f64 {
         f64::from(self.x.pow(2) + self.y.pow(2)).sqrt()
     }
 }

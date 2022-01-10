@@ -2,7 +2,7 @@ use aoc_runner_derive::{aoc, aoc_generator};
 use bitvec::prelude::*;
 use nom::{
     branch::alt,
-    bytes::complete::*,
+    bytes::complete::{tag, take},
     combinator::map,
     multi::{fold_many0, length_count, length_value, many1},
     sequence::{preceded, tuple},
@@ -216,7 +216,7 @@ mod tests {
     fn solution2() {
         assert_eq!(
             part2(&input_generator(include_str!("../input/2021/day16.txt"))),
-            10637009915279,
+            10_637_009_915_279,
         );
     }
 }
